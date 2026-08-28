@@ -24,3 +24,13 @@ class User(Base):
     access_token = Column(Text, nullable=True)  # Store encrypted
     refresh_token = Column(Text, nullable=True)  # Store encrypted
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class TaskReport(Base):
+    __tablename__ = "task_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)
+    goal = Column(Text)
+    status = Column(String)  # "SUCCESS", "FAILED", "PARTIAL"
+    steps_json = Column(Text)  # JSON list of dicts with step detail, status, errors/metadata
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)

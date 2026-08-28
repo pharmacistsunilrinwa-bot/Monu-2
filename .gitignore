@@ -154,5 +154,11 @@ Thumbs.db
 *.iml
 .env
 node_modules/
-node_modules/
-node_modules/
+
+# Monu Personal Server ignore
+assistant.db
+assistant.db-journal
+backend/api_keys.env
+*.key
+*.bin
+

@@ -13,6 +13,7 @@ from services.sentiment_service import sentiment_service
 from services.gemini_logic_service import gemini_logic_service
 from services.file_manager_service import file_manager_service
 from services.memory_service import memory_service
+from services.orchestration_service import orchestration_service
 from schemas import ChatRequest, ChatResponse, SearchRequest, TaskPlanRequest, ProjectPlan
 import os
 import shutil
@@ -110,9 +111,11 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
         except Exception as e:
             print(f"Failed to decode attachment base64: {e}")
             
-    # 5. Get reasoned response with context
-    response_text = await gemini_logic_service.reasoned_chat(
-        prompt=request.message, 
+    # 5. Get reasoned response with context using Monu Orchestration Server
+    response_text = await orchestration_service.execute_command(
+        db=db,
+        user_id=request.user_id,
+        message=request.message, 
         context=context,
         attachment_bytes=attachment_bytes,
         attachment_mime=request.attachment_mime
