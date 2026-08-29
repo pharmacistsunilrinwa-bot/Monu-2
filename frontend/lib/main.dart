@@ -212,7 +212,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _syncWithServer() async {
     try {
-      final response = await http.get(Uri.parse("${widget.baseUrl}/chat/history?user_id=default"));
+      final response = await http.get(Uri.parse("${widget.baseUrl}/chat/history?user_id=default")).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         setState(() {
@@ -221,9 +221,13 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         _saveLocalHistory();
         _scrollToBottom();
+      } else {
+        debugPrint("Sync server error: ${response.statusCode}");
       }
-    } catch (e) {
-      debugPrint("Sync failed: $e");
+    } on http.ClientException {
+      debugPrint("Sync network error");
+    } on Exception catch (e) {
+      debugPrint("Sync error: $e");
     }
   }
 

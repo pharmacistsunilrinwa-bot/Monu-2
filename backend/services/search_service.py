@@ -16,8 +16,11 @@ class SearchService:
             )
             
         async def _call():
-            response = await model_container["model"].generate_content_async(
-                f"Perform a Google Search and provide highly accurate, current information on: {query}"
+            response = await asyncio.wait_for(
+                model_container["model"].generate_content_async(
+                    f"Perform a Google Search and provide highly accurate, current information on: {query}"
+                ),
+                timeout=20.0
             )
             return response
 

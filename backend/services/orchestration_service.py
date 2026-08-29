@@ -115,15 +115,21 @@ class OrchestrationService:
                     })
                     continue
                 
-                # Run the tool
+                # Run the tool with timeout
                 try:
-                    tool_result = await tool.execute(user_id, **tool_args)
+                    tool_result = await asyncio.wait_for(tool.execute(user_id, **tool_args), timeout=30.0)
                     execution_history.append({
                         "tool": action,
                         "success": tool_result.get("success", True),
                         "result": tool_result,
                         "error": tool_result.get("error"),
                         "message": tool_result.get("message", "Executed successfully")
+                    })
+                except asyncio.TimeoutError:
+                    execution_history.append({
+                        "tool": action,
+                        "success": False,
+                        "error": f"Tool execution timed out after 30 seconds."
                     })
                 except Exception as tool_err:
                     execution_history.append({
