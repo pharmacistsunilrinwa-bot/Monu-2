@@ -34,3 +34,12 @@ class TaskReport(Base):
     status = Column(String)  # "SUCCESS", "FAILED", "PARTIAL"
     steps_json = Column(Text)  # JSON list of dicts with step detail, status, errors/metadata
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, index=True)
+    user_id = Column(String, index=True)
+    feedback_type = Column(String)  # "LIKE", "DISLIKE"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)

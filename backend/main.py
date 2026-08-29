@@ -196,6 +196,14 @@ async def get_tools():
     from tools import get_tools_schema
     return {"tools": get_tools_schema()}
 
+@app.post("/chat/feedback")
+async def add_feedback(message_id: int, feedback_type: str, user_id: str = "default", db: AsyncSession = Depends(get_db)):
+    from models import Feedback
+    new_feedback = Feedback(message_id=message_id, user_id=user_id, feedback_type=feedback_type)
+    db.add(new_feedback)
+    await db.commit()
+    return {"success": True, "message": "Feedback recorded"}
+
 # --- Power Feature: Data Analysis ---
 @app.post("/analysis/csv")
 async def analyze_csv(file: UploadFile = File(...)):

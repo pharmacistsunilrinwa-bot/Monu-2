@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
@@ -104,6 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   bool _speechEnabled = false;
+  bool _isLoading = false;
 
   // Text to Speech (Voice Output)
   final FlutterTts _flutterTts = FlutterTts();
@@ -238,13 +240,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage(String text) async {
-    if (text.isEmpty && _selectedAttachment == null) return;
+    if ((text.isEmpty && _selectedAttachment == null) || _isLoading) return;
     
     final promptText = text.isNotEmpty ? text : "Analyze the attached file.";
     
     setState(() {
       _messages.add({"role": "user", "content": promptText});
       _controller.clear();
+      _isLoading = true;
     });
     _scrollToBottom();
     _saveLocalHistory();
@@ -286,6 +289,7 @@ class _ChatScreenState extends State<ChatScreen> {
         
         setState(() {
           _messages.add({"role": "assistant", "content": reply});
+          _isLoading = false;
         });
         _saveLocalHistory();
         _scrollToBottom();
@@ -305,9 +309,12 @@ class _ChatScreenState extends State<ChatScreen> {
         if (isForgetCommand) {
           _syncWithServer();
         }
+      } else {
+         setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     }
@@ -353,6 +360,23 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error deleting entry: $e")),
+      );
+    }
+  }
+
+  Future<void> _sendFeedback(String messageId, String feedbackType) async {
+    try {
+      final response = await http.post(
+        Uri.parse("${widget.baseUrl}/chat/feedback?message_id=$messageId&feedback_type=$feedbackType"),
+      );
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Feedback: $feedbackType sent!")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error sending feedback: $e")),
       );
     }
   }
@@ -607,41 +631,56 @@ class _ChatScreenState extends State<ChatScreen> {
                 final isUser = msg["role"] == "user";
                 final msgId = msg["id"];
 
-                return Row(
-                  mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                return Column(
+                  crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                   children: [
-                    if (!isUser && msgId != null)
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey[600]),
-                        onPressed: () => _deleteMessage(msgId),
-                        tooltip: "Delete memory entry",
-                      ),
-                    Flexible(
-                      child: Container(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isUser ? Colors.deepPurple[700] : Colors.grey[850],
-                          borderRadius: BorderRadius.circular(16).copyWith(
-                            bottomRight: isUser ? const Radius.circular(0) : const Radius.circular(16),
-                            bottomLeft: isUser ? const Radius.circular(16) : const Radius.circular(0),
+                    Row(
+                      mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (!isUser && msgId != null)
+                          IconButton(
+                            icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey[600]),
+                            onPressed: () => _deleteMessage(msgId),
+                            tooltip: "Delete memory entry",
+                          ),
+                        Flexible(
+                          child: Container(
+                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isUser ? Colors.deepPurple[700] : Colors.grey[850],
+                              borderRadius: BorderRadius.circular(16).copyWith(
+                                bottomRight: isUser ? const Radius.circular(0) : const Radius.circular(16),
+                                bottomLeft: isUser ? const Radius.circular(16) : const Radius.circular(0),
+                              ),
+                            ),
+                            child: MarkdownBody(
+                              data: msg["content"] ?? "",
+                              styleSheet: MarkdownStyleSheet(
+                                p: const TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                            ),
                           ),
                         ),
-                        child: MarkdownBody(
-                          data: msg["content"] ?? "",
-                          styleSheet: MarkdownStyleSheet(
-                            p: const TextStyle(color: Colors.white, fontSize: 16),
+                        if (isUser && msgId != null)
+                          IconButton(
+                            icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey[600]),
+                            onPressed: () => _deleteMessage(msgId),
+                            tooltip: "Delete memory entry",
                           ),
-                        ),
-                      ),
+                      ],
                     ),
-                    if (isUser && msgId != null)
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey[600]),
-                        onPressed: () => _deleteMessage(msgId),
-                        tooltip: "Delete memory entry",
+                    if (!isUser && msgId != null)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          IconButton(icon: const Icon(Icons.volume_up, size: 16), onPressed: () => _speak(msg["content"]!), tooltip: "Replay"),
+                          IconButton(icon: const Icon(Icons.copy, size: 16), onPressed: () { Clipboard.setData(ClipboardData(text: msg["content"]!)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Copied!"))); }, tooltip: "Copy"),
+                          IconButton(icon: const Icon(Icons.thumb_up_outlined, size: 16), onPressed: () => _sendFeedback(msgId, "LIKE"), tooltip: "Like"),
+                          IconButton(icon: const Icon(Icons.thumb_down_outlined, size: 16), onPressed: () => _sendFeedback(msgId, "DISLIKE"), tooltip: "Dislike"),
+                        ],
                       ),
                   ],
                 );
@@ -680,10 +719,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox(width: 8),
                 CircleAvatar(
                   backgroundColor: Colors.deepPurple,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: () => _sendMessage(_controller.text),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : IconButton(
+                          icon: const Icon(Icons.send, color: Colors.white),
+                          onPressed: () => _sendMessage(_controller.text),
+                        ),
                 ),
               ],
             ),
