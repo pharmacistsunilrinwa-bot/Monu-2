@@ -198,11 +198,18 @@ async def get_tools():
 
 @app.post("/chat/feedback")
 async def add_feedback(message_id: int, feedback_type: str, user_id: str = "default", db: AsyncSession = Depends(get_db)):
-    from models import Feedback
-    new_feedback = Feedback(message_id=message_id, user_id=user_id, feedback_type=feedback_type)
-    db.add(new_feedback)
-    await db.commit()
-    return {"success": True, "message": "Feedback recorded"}
+    try:
+        from models import Feedback
+        new_feedback = Feedback(message_id=message_id, user_id=user_id, feedback_type=feedback_type)
+        db.add(new_feedback)
+        await db.commit()
+        return {"success": True, "message": "Feedback recorded"}
+    except Exception as e:
+        print(f"Error recording feedback: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Failed to record feedback"}
+        )
 
 # --- Power Feature: Data Analysis ---
 @app.post("/analysis/csv")

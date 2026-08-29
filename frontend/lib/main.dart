@@ -334,11 +334,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _speak(String text) async {
     await _flutterTts.stop();
+    _parseVoiceCommands(text); // Intercept commands
+    
     // Strip markdown symbols for natural audio speech synthesis
     final cleanText = text
         .replaceAll(RegExp(r'\*|_|#|`|>|\[|\]'), '')
         .replaceAll(RegExp(r'\n+'), '. ');
     await _flutterTts.speak(cleanText);
+  }
+
+  void _parseVoiceCommands(String text) {
+    try {
+      final regExp = RegExp(r'\{"command":\s*"set_voice",.*?\}');
+      final match = regExp.firstMatch(text);
+      if (match != null) {
+        final Map<String, dynamic> command = jsonDecode(match.group(0)!);
+        if (command.containsKey('rate')) _flutterTts.setSpeechRate(command['rate'].toDouble());
+        if (command.containsKey('pitch')) _flutterTts.setPitch(command['pitch'].toDouble());
+      }
+    } catch (e) {
+      debugPrint("Voice command parsing error: $e");
+    }
   }
 
   Future<void> _clearHistory() async {
