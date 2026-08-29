@@ -7,7 +7,6 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'features_hub.dart';
 
 void main() {
   runApp(const MyApp());
@@ -25,70 +24,13 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
         useMaterial3: true,
       ),
-      home: const MainScreen(),
-    );
-  }
-}
-
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
-
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-  String _baseUrl = "https://kebab-retrace-transpose.ngrok-free.dev";
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/settings.json');
-      if (await file.exists()) {
-        final data = jsonDecode(await file.readAsString());
-        setState(() {
-          _baseUrl = data['baseUrl'] ?? _baseUrl;
-        });
-      }
-    } catch (e) {
-      debugPrint("Error loading settings: $e");
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      ChatScreen(baseUrl: _baseUrl),
-      FeaturesHubScreen(baseUrl: _baseUrl),
-    ];
-
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: "Chat"),
-          BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Features Hub"),
-        ],
-      ),
+      home: const ChatScreen(),
     );
   }
 }
 
 class ChatScreen extends StatefulWidget {
-  final String baseUrl;
-  const ChatScreen({super.key, required this.baseUrl});
+  const ChatScreen({super.key});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -97,6 +39,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final List<Map<String, String>> _messages = [];
+  String _baseUrl = "https://kebab-retrace-transpose.ngrok-free.dev";
   final ScrollController _scrollController = ScrollController();
 
   // Speech to Text (Optimized & Real-time)
@@ -116,7 +59,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    // Settings are handled in MainScreen
+    _loadSettings();
     _loadLocalHistory();
     _initSpeech();
     _initTts();
@@ -209,7 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _syncWithServer() async {
     try {
-      final response = await http.get(Uri.parse("${widget.baseUrl}/chat/history?user_id=default"));
+      final response = await http.get(Uri.parse("$_baseUrl/chat/history?user_id=default"));
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         setState(() {
@@ -274,7 +217,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       final response = await http.post(
-        Uri.parse("${widget.baseUrl}/chat"),
+        Uri.parse("$_baseUrl/chat"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(bodyMap),
       ).timeout(const Duration(seconds: 45));
@@ -333,7 +276,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _messages.clear());
     await _saveLocalHistory();
     try {
-      await http.delete(Uri.parse("${widget.baseUrl}/chat/history?user_id=default"));
+      await http.delete(Uri.parse("$_baseUrl/chat/history?user_id=default"));
     } catch (e) {
       debugPrint("Remote clear failed: $e");
     }
@@ -341,7 +284,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _deleteMessage(String id) async {
     try {
-      final response = await http.delete(Uri.parse("${widget.baseUrl}/chat/history/$id"));
+      final response = await http.delete(Uri.parse("$_baseUrl/chat/history/$id"));
       if (response.statusCode == 200) {
         _syncWithServer();
       } else {
