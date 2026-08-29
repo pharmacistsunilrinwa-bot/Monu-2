@@ -25,7 +25,7 @@ android {
         create("release") {
             storeFile = file("upload-keystore.jks")
             storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = "key0"
+            keyAlias = "upload"
             keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
