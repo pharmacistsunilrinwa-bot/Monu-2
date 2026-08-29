@@ -190,6 +190,12 @@ async def voice_to_text(file: UploadFile = File(...)):
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
+# --- Power Feature: Tools ---
+@app.get("/tools")
+async def get_tools():
+    from tools import get_tools_schema
+    return {"tools": get_tools_schema()}
+
 # --- Power Feature: Data Analysis ---
 @app.post("/analysis/csv")
 async def analyze_csv(file: UploadFile = File(...)):
