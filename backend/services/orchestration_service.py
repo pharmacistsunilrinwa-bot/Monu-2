@@ -8,6 +8,7 @@ from services.gemini_service import gemini_service
 from services.gemini_logic_service import gemini_logic_service
 from services.permission_service import permission_service, PermissionLevel
 from services.secure_storage_service import secure_storage_service
+from services.task_reporter_service import task_reporter_service
 from tools import tools_map, get_tools_schema
 
 class OrchestrationService:
@@ -68,18 +69,20 @@ class OrchestrationService:
                     # Final output verification before sending back
                     reply_msg = decision.get("message", response_text)
                     
-                    # Add execution task reporting if we executed tools
+                    # Generate and save factual task report if we executed tools
                     if execution_history:
-                        report = "\n\n### 📋 Task Execution Status Report:\n"
-                        for entry in execution_history:
-                            status_emoji = "✅ SUCCESS" if entry["success"] else "❌ FAILED"
-                            report += f"- **Tool**: `{entry['tool']}`\n"
-                            report += f"  - **Status**: {status_emoji}\n"
-                            if entry.get("error"):
-                                report += f"  - **Reason/Error**: {entry['error']}\n"
-                            elif entry.get("message"):
-                                report += f"  - **Result Info**: {entry['message']}\n"
+                        report = task_reporter_service.generate_markdown_report(message, execution_history)
                         reply_msg += report
+                        
+                        try:
+                            await task_reporter_service.save_report(
+                                db=db,
+                                user_id=user_id,
+                                goal=message,
+                                steps=execution_history
+                            )
+                        except Exception as save_err:
+                            print(f"[Orchestrator] Error saving task report to DB: {save_err}")
                         
                     return reply_msg
                 
