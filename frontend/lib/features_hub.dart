@@ -91,9 +91,91 @@ class _FeaturesHubScreenState extends State<FeaturesHubScreen> {
   }
 
   void _executeTool(dynamic tool) {
-    // Basic implementation: inform user. Could be expanded to show argument input dialogs.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Action for ${tool['name']} triggered. Functionality pending further integration.")),
+    final Map<String, TextEditingController> argControllers = {};
+    final Map<String, dynamic> arguments = tool['arguments'] ?? {};
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Run ${tool['name']}"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(tool['description']),
+              const SizedBox(height: 10),
+              ...arguments.entries.map((entry) {
+                argControllers[entry.key] = TextEditingController();
+                return TextField(
+                  controller: argControllers[entry.key],
+                  decoration: InputDecoration(labelText: entry.key),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              _runToolAction(tool, argControllers);
+            },
+            child: const Text("Execute"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runToolAction(dynamic tool, Map<String, TextEditingController> argControllers) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final Map<String, String> args = {};
+    argControllers.forEach((key, controller) {
+      args[key] = controller.text;
+    });
+
+    try {
+      final body = {
+        "message": "Run tool ${tool['name']} with arguments $args",
+        "user_id": "default",
+      };
+
+      final response = await http.post(
+        Uri.parse("${widget.baseUrl}/chat"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 45));
+
+      Navigator.pop(context); // Remove loader
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _showResult(tool['name'], data['response']);
+      } else {
+        _showResult(tool['name'], "Error: ${response.statusCode}");
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      _showResult(tool['name'], "Exception: $e");
+    }
+  }
+
+  void _showResult(String toolName, String result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Result: $toolName"),
+        content: SingleChildScrollView(child: Text(result)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+        ],
+      ),
     );
   }
 }
