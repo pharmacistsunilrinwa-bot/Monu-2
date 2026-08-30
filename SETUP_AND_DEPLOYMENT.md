@@ -130,9 +130,10 @@ final String _baseUrl = "http://192.168.1.100:8000";
 
 ### 2. Start Backend Server
 
+**For Local Development:**
 ```bash
 # Navigate to project root
-cd Trmex-1
+cd Monu-1
 
 # Install Python dependencies
 pip install -r requirements.txt
@@ -140,6 +141,12 @@ pip install -r requirements.txt
 # Start FastAPI server
 python backend/main.py
 # Server runs on http://localhost:8000
+```
+
+**For Render Deployment (Start Command in Dashboard):**
+Enter the following command in the Render "Start Command" field:
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
 ### 3. Test Backend Connectivity
