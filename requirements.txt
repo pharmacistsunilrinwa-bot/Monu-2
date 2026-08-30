@@ -31,3 +31,4 @@ cryptography
 requests
 gTTS
 setuptools
+setuptools
