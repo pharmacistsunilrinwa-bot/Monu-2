@@ -40,7 +40,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  String _baseUrl = "https://monu-1.onrender.com";
+  String _baseUrl = "https://monu-1-jupz.onrender.com";
 
   @override
   void initState() {
@@ -96,7 +96,7 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  String _baseUrl = "https://monu-1.onrender.com";
+  String _baseUrl = "https://monu-1-jupz.onrender.com";
   final TextEditingController _controller = TextEditingController();
   final List<Map<String, String>> _messages = [];
   final ScrollController _scrollController = ScrollController();
