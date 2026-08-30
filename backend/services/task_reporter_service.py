@@ -2,7 +2,7 @@ import json
 import datetime
 from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from models import TaskReport
+from backend.models import TaskReport
 
 class TaskReporterService:
     def __init__(self):

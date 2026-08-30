@@ -1,6 +1,6 @@
 import google.generativeai as genai
 from sqlalchemy.future import select
-from models import ChatHistory
+from backend.models import ChatHistory
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.services.api_key_manager import api_key_manager, execute_with_failover
 from typing import Optional

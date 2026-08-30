@@ -3,7 +3,7 @@ import re
 from sqlalchemy.future import select
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from models import ChatHistory
+from backend.models import ChatHistory
 from backend.services.gemini_service import gemini_service
 
 class MemoryService:
