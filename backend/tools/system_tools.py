@@ -3,9 +3,9 @@ import sys
 import subprocess
 import pkg_resources
 from typing import Dict, Any
-from tools.base_tool import BaseTool
-from services.permission_service import PermissionLevel, permission_service
-from services.search_service import search_service
+from backend.tools.base_tool import BaseTool
+from backend.services.permission_service import PermissionLevel, permission_service
+from backend.services.search_service import search_service
 
 class CheckEnvironmentTool(BaseTool):
     @property

@@ -4,7 +4,7 @@ import mimetypes
 import google.generativeai as genai
 from gtts import gTTS
 import tempfile
-from services.api_key_manager import api_key_manager, execute_with_failover
+from backend.services.api_key_manager import api_key_manager, execute_with_failover
 
 class VoiceService:
     @staticmethod

@@ -5,9 +5,9 @@ import os
 # Ensure backend directory is in python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.secure_storage_service import secure_storage_service
-from services.permission_service import permission_service, PermissionLevel
-from services.orchestration_service import orchestration_service
+from backend.services.secure_storage_service import secure_storage_service
+from backend.services.permission_service import permission_service, PermissionLevel
+from backend.services.orchestration_service import orchestration_service
 
 class TestMonuServerSecurityAndOrchestration(unittest.TestCase):
     def test_secure_storage(self):

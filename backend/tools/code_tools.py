@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any
-from tools.base_tool import BaseTool
-from services.permission_service import PermissionLevel, permission_service
+from backend.tools.base_tool import BaseTool
+from backend.services.permission_service import PermissionLevel, permission_service
 
 class CodeEditorTool(BaseTool):
     @property
@@ -50,7 +50,7 @@ class CodeEditorTool(BaseTool):
             }
 
         # Resolve path securely
-        from services.file_manager_service import file_manager_service
+        from backend.services.file_manager_service import file_manager_service
         try:
             full_path = file_manager_service._secure_path(file_path)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)

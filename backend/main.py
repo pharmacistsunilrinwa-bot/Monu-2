@@ -3,18 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from .database import get_db, init_db
-from .models import ChatHistory
-from services.gemini_service import gemini_service
-from services.voice_service import voice_service
-from services.search_service import search_service
-from services.analysis_service import analysis_service
-from services.sentiment_service import sentiment_service
-from services.gemini_logic_service import gemini_logic_service
-from services.file_manager_service import file_manager_service
-from services.memory_service import memory_service
-from services.orchestration_service import orchestration_service
-from schemas import ChatRequest, ChatResponse, SearchRequest, TaskPlanRequest, ProjectPlan
+from backend.database import get_db, init_db
+from backend.models import ChatHistory, Feedback
+from backend.services.gemini_service import gemini_service
+from backend.services.voice_service import voice_service
+from backend.services.search_service import search_service
+from backend.services.analysis_service import analysis_service
+from backend.services.sentiment_service import sentiment_service
+from backend.services.gemini_logic_service import gemini_logic_service
+from backend.services.file_manager_service import file_manager_service
+from backend.services.memory_service import memory_service
+from backend.services.orchestration_service import orchestration_service
+from backend.schemas import ChatRequest, ChatResponse, SearchRequest, TaskPlanRequest, ProjectPlan
 import os
 import shutil
 import asyncio
@@ -193,17 +193,17 @@ async def voice_to_text(file: UploadFile = File(...)):
 # --- Power Feature: Tools ---
 @app.get("/tools")
 async def get_tools():
-    from tools import get_tools_schema
+    from backend.tools import get_tools_schema
     return {"tools": get_tools_schema()}
 
 @app.post("/chat/feedback")
 async def add_feedback(message_id: int, feedback_type: str, user_id: str = "default", db: AsyncSession = Depends(get_db)):
     try:
-        from .models import Feedback
         new_feedback = Feedback(message_id=message_id, user_id=user_id, feedback_type=feedback_type)
         db.add(new_feedback)
         await db.commit()
         return {"success": True, "message": "Feedback recorded"}
+
     except Exception as e:
         print(f"Error recording feedback: {e}")
         return JSONResponse(

@@ -1,8 +1,8 @@
 import os
 from typing import Dict, Any
-from tools.base_tool import BaseTool
-from services.permission_service import PermissionLevel, permission_service
-from services.file_manager_service import file_manager_service
+from backend.tools.base_tool import BaseTool
+from backend.services.permission_service import PermissionLevel, permission_service
+from backend.services.file_manager_service import file_manager_service
 
 class ListFilesTool(BaseTool):
     @property

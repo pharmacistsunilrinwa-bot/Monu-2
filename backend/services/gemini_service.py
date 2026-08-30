@@ -1,5 +1,5 @@
 import google.generativeai as genai
-from services.api_key_manager import api_key_manager, execute_with_failover
+from backend.services.api_key_manager import api_key_manager, execute_with_failover
 
 class GeminiService:
     def __init__(self):

@@ -2,7 +2,7 @@ import google.generativeai as genai
 from sqlalchemy.future import select
 from models import ChatHistory
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.api_key_manager import api_key_manager, execute_with_failover
+from backend.services.api_key_manager import api_key_manager, execute_with_failover
 from typing import Optional
 
 class GeminiLogicService:
@@ -53,7 +53,7 @@ class GeminiLogicService:
         
         full_prompt = ""
         if is_codebase_query:
-            from services.codebase_advisory_service import codebase_advisory_service
+            from backend.services.codebase_advisory_service import codebase_advisory_service
             codebase_content = codebase_advisory_service.scan_codebase()
             full_prompt += (
                 "You have been asked a question regarding your own codebase. "

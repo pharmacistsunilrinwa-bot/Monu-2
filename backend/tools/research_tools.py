@@ -1,8 +1,8 @@
 import os
 from typing import Dict, Any
-from tools.base_tool import BaseTool
-from services.permission_service import PermissionLevel, permission_service
-from services.analysis_service import analysis_service
+from backend.tools.base_tool import BaseTool
+from backend.services.permission_service import PermissionLevel, permission_service
+from backend.services.analysis_service import analysis_service
 
 class DocumentAnalyzerTool(BaseTool):
     @property
@@ -34,7 +34,7 @@ class DocumentAnalyzerTool(BaseTool):
         if not file_path:
             return {"success": False, "error": "Missing file_path argument"}
 
-        from services.file_manager_service import file_manager_service
+        from backend.services.file_manager_service import file_manager_service
         try:
             full_path = file_manager_service._secure_path(file_path)
             if not os.path.exists(full_path):

@@ -131,13 +131,14 @@ final String _baseUrl = "http://192.168.1.100:8000";
 ### 2. Start Backend Server
 
 ```bash
-cd Trmex-1/backend
+# Navigate to project root
+cd Trmex-1
 
 # Install Python dependencies
 pip install -r requirements.txt
 
 # Start FastAPI server
-python main.py
+python backend/main.py
 # Server runs on http://localhost:8000
 ```
 

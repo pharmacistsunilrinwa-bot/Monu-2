@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from services.permission_service import PermissionLevel
+from backend.services.permission_service import PermissionLevel
 
 class BaseTool(ABC):
     @property

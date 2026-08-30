@@ -5,11 +5,11 @@ import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tools.code_tools import CodeEditorTool
-from tools.research_tools import DocumentAnalyzerTool
-from tools.automation_tools import TaskAutomationTool, IncomeAssistantTool
-from tools.generation_tools import MediaGeneratorTool
-from services.permission_service import permission_service
+from backend.tools.code_tools import CodeEditorTool
+from backend.tools.research_tools import DocumentAnalyzerTool
+from backend.tools.automation_tools import TaskAutomationTool, IncomeAssistantTool
+from backend.tools.generation_tools import MediaGeneratorTool
+from backend.services.permission_service import permission_service
 
 class TestMonuAdvancedTools(unittest.TestCase):
     def setUp(self):

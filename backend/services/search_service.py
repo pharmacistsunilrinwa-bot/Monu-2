@@ -1,7 +1,7 @@
 import os
 import asyncio
 import google.generativeai as genai
-from services.api_key_manager import api_key_manager, execute_with_failover
+from backend.services.api_key_manager import api_key_manager, execute_with_failover
 
 class SearchService:
     @staticmethod

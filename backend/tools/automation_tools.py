@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any, List
-from tools.base_tool import BaseTool
-from services.permission_service import PermissionLevel, permission_service
+from backend.tools.base_tool import BaseTool
+from backend.services.permission_service import PermissionLevel, permission_service
 
 class TaskAutomationTool(BaseTool):
     @property
@@ -42,7 +42,7 @@ class TaskAutomationTool(BaseTool):
         # Simulate task registration or setup securely
         # Always report actual factual success of setting up the automation configuration
         automation_config_file = f"automation_{task_name.lower().replace(' ', '_')}.json"
-        from services.file_manager_service import file_manager_service
+        from backend.services.file_manager_service import file_manager_service
         try:
             import json
             full_path = file_manager_service._secure_path(automation_config_file)

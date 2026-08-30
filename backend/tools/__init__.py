@@ -1,11 +1,11 @@
 from typing import Dict, List, Any
-from tools.base_tool import BaseTool
-from tools.system_tools import CheckEnvironmentTool, GoogleSearchTool, RunShellCommandTool
-from tools.file_tools import ListFilesTool, ReadFileTool, WriteFileTool, DeleteFileTool
-from tools.code_tools import CodeEditorTool
-from tools.research_tools import DocumentAnalyzerTool
-from tools.automation_tools import TaskAutomationTool, IncomeAssistantTool
-from tools.generation_tools import MediaGeneratorTool
+from backend.tools.base_tool import BaseTool
+from backend.tools.system_tools import CheckEnvironmentTool, GoogleSearchTool, RunShellCommandTool
+from backend.tools.file_tools import ListFilesTool, ReadFileTool, WriteFileTool, DeleteFileTool
+from backend.tools.code_tools import CodeEditorTool
+from backend.tools.research_tools import DocumentAnalyzerTool
+from backend.tools.automation_tools import TaskAutomationTool, IncomeAssistantTool
+from backend.tools.generation_tools import MediaGeneratorTool
 
 # Registry of all available Monu tools
 _all_tools: List[BaseTool] = [

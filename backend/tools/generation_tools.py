@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any
-from tools.base_tool import BaseTool
-from services.permission_service import PermissionLevel, permission_service
+from backend.tools.base_tool import BaseTool
+from backend.services.permission_service import PermissionLevel, permission_service
 
 class MediaGeneratorTool(BaseTool):
     @property
@@ -85,7 +85,7 @@ class MediaGeneratorTool(BaseTool):
 
         # Save the SVG under user_data so the system can serve or return it
         filename = f"gen_media_{user_id}.svg"
-        from services.file_manager_service import file_manager_service
+        from backend.services.file_manager_service import file_manager_service
         try:
             full_path = file_manager_service._secure_path(filename)
             with open(full_path, "w", encoding="utf-8") as f:
