@@ -4,7 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from .database import get_db, init_db
-from models import ChatHistory
+from .models import ChatHistory
 from services.gemini_service import gemini_service
 from services.voice_service import voice_service
 from services.search_service import search_service
@@ -199,7 +199,7 @@ async def get_tools():
 @app.post("/chat/feedback")
 async def add_feedback(message_id: int, feedback_type: str, user_id: str = "default", db: AsyncSession = Depends(get_db)):
     try:
-        from models import Feedback
+        from .models import Feedback
         new_feedback = Feedback(message_id=message_id, user_id=user_id, feedback_type=feedback_type)
         db.add(new_feedback)
         await db.commit()
