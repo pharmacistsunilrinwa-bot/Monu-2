@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_db, init_db
+from .database import get_db, init_db
 from models import ChatHistory
 from services.gemini_service import gemini_service
 from services.voice_service import voice_service
