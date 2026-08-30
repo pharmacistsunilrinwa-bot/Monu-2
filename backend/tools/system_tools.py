@@ -36,10 +36,12 @@ class CheckEnvironmentTool(BaseTool):
         query = kwargs.get("query", "").lower()
         
         # 1. Gather basic python capabilities
+        import importlib.metadata
         installed_packages = []
-        # for dist in pkg_resources.working_set: (removed)
-            if not query or query in dist.project_name.lower():
-                installed_packages.append(f"{dist.project_name} ({dist.version})")
+        for dist in importlib.metadata.distributions():
+            name = dist.metadata.get("Name", "")
+            if not query or query in name.lower():
+                installed_packages.append(f"{name} ({dist.version})")
 
         # 2. Check key OS command availability
         key_commands = ["ffmpeg", "git", "curl", "node", "npm", "flutter", "sqlite3"]
