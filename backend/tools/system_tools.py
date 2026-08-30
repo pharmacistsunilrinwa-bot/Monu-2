@@ -1,7 +1,7 @@
 import os
 import sys
 import subprocess
-import pkg_resources
+# import pkg_resources (removed)
 from typing import Dict, Any
 from backend.tools.base_tool import BaseTool
 from backend.services.permission_service import PermissionLevel, permission_service
@@ -37,7 +37,7 @@ class CheckEnvironmentTool(BaseTool):
         
         # 1. Gather basic python capabilities
         installed_packages = []
-        for dist in pkg_resources.working_set:
+        # for dist in pkg_resources.working_set: (removed)
             if not query or query in dist.project_name.lower():
                 installed_packages.append(f"{dist.project_name} ({dist.version})")
 
