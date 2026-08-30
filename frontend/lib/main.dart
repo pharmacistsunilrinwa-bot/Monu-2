@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:uuid/uuid.dart';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -94,12 +96,18 @@ class ChatScreen extends StatefulWidget {
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
-
 class _ChatScreenState extends State<ChatScreen> {
   String _baseUrl = "https://monu-1-jprz.onrender.com";
   final TextEditingController _controller = TextEditingController();
   final List<Map<String, String>> _messages = [];
   final ScrollController _scrollController = ScrollController();
+
+  // Tracking
+  String _currentStatus = "Idle";
+  WebSocketChannel? _channel;
+  final Uuid _uuid = const Uuid();
+
+  // ... existing fields ...
 
   // Speech to Text (Optimized & Real-time)
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -242,17 +250,28 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
   }
+Future<void> _sendMessage(String text) async {
+  if ((text.isEmpty && _selectedAttachment == null) || _isLoading) return;
 
-  Future<void> _sendMessage(String text) async {
-    if ((text.isEmpty && _selectedAttachment == null) || _isLoading) return;
-    
-    final promptText = text.isNotEmpty ? text : "Analyze the attached file.";
-    
-    setState(() {
-      _messages.add({"role": "user", "content": promptText});
-      _controller.clear();
-      _isLoading = true;
-    });
+  final promptText = text.isNotEmpty ? text : "Analyze the attached file.";
+  final requestId = _uuid.v4();
+
+  // Connect to Tracking
+  final wsUrl = widget.baseUrl.replaceFirst('https', 'wss').replaceFirst('http', 'ws');
+  _channel = WebSocketChannel.connect(Uri.parse('$wsUrl/ws/track/$requestId'));
+  _channel!.stream.listen((message) {
+    final data = jsonDecode(message);
+    setState(() => _currentStatus = data["status"]);
+  });
+
+  setState(() {
+    _messages.add({"role": "user", "content": promptText});
+    _controller.clear();
+    _isLoading = true;
+    _currentStatus = "Message Sent";
+  });
+  // ...
+
     _scrollToBottom();
     _saveLocalHistory();
 
@@ -275,6 +294,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final bodyMap = {
         "message": promptText,
         "user_id": "default",
+        "request_id": requestId, // Include for backend tracking
       };
       if (base64Attachment != null) {
         bodyMap["attachment"] = base64Attachment;

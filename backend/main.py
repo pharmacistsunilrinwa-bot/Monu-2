@@ -118,7 +118,8 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
         message=request.message, 
         context=context,
         attachment_bytes=attachment_bytes,
-        attachment_mime=request.attachment_mime
+        attachment_mime=request.attachment_mime,
+        request_id=getattr(request, "request_id", None)
     )
     
     # 6. Save to history
@@ -211,7 +212,17 @@ async def add_feedback(message_id: int, feedback_type: str, user_id: str = "defa
             content={"success": False, "error": "Failed to record feedback"}
         )
 
-# --- Power Feature: Data Analysis ---
+# --- Tracking System ---
+@app.websocket("/ws/track/{request_id}")
+async def websocket_endpoint(websocket: WebSocket, request_id: str):
+    from backend.services.tracking_service import tracking_service
+    await tracking_service.connect(request_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except:
+        tracking_service.disconnect(request_id)
+
 @app.post("/analysis/csv")
 async def analyze_csv(file: UploadFile = File(...)):
     temp_path = f"data_{file.filename}"

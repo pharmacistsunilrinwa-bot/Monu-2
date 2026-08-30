@@ -23,15 +23,21 @@ class OrchestrationService:
         message: str, 
         context: str = "",
         attachment_bytes: Optional[bytes] = None,
-        attachment_mime: Optional[str] = None
+        attachment_mime: Optional[str] = None,
+        request_id: Optional[str] = None # Added for tracking
     ) -> str:
         """
         The main orchestration entry point. Receives the command, plans actions, 
         runs tools if needed (with permission checks), verifies outcomes, 
         and returns the final result.
         """
+        from backend.services.tracking_service import tracking_service
+        if request_id:
+            await tracking_service.update_status(request_id, "Processing by AI Engine")
+
         message_lower = message.lower().strip()
-        
+        # ... rest of the method unchanged ...
+
         # 1. Handle Permission / Elevation Commands
         if message_lower.startswith("elevate session") or message_lower.startswith("authorize high security"):
             try:

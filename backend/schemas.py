@@ -6,6 +6,7 @@ class ChatRequest(BaseModel):
     message: str
     attachment: Optional[str] = None  # Base64 encoded string of attachment
     attachment_mime: Optional[str] = None  # MIME type of attachment, e.g. "image/jpeg"
+    request_id: Optional[str] = None # Added for tracking
 
 class ChatResponse(BaseModel):
     response: str
