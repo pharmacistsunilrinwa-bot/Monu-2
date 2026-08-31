@@ -1,64 +1,51 @@
 import os
-from cryptography.fernet import Fernet
+import json
+import logging
+import sqlite3
 
-class SecureStorageService:
-    def __init__(self):
-        self.key_file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "secure_key.key")
-        self.fernet = self._init_fernet()
-
-    def _init_fernet(self) -> Fernet:
-        """Initializes the Fernet encryption cipher using an env variable or a local key file."""
-        # 1. Try to read from environment variable
-        key = os.getenv("MONU_SECURE_KEY")
-        
-        if key:
-            try:
-                return Fernet(key.encode())
-            except Exception as e:
-                print(f"[SecureStorageService] Invalid MONU_SECURE_KEY environment variable: {e}. Falling back to file.")
-
-        # 2. Try to read from local key file
-        if os.path.exists(self.key_file_path):
-            try:
-                with open(self.key_file_path, "rb") as key_file:
-                    key_bytes = key_file.read()
-                    return Fernet(key_bytes)
-            except Exception as e:
-                print(f"[SecureStorageService] Error reading key file: {e}. Generating new key.")
-
-        # 3. Generate a new key and save it securely
-        new_key_bytes = Fernet.generate_key()
-        try:
-            with open(self.key_file_path, "wb") as key_file:
-                key_file.write(new_key_bytes)
-            # Set read/write permissions only for owner
-            os.chmod(self.key_file_path, 0o600)
-            print(f"[SecureStorageService] Created new encryption key at {self.key_file_path}")
-        except Exception as e:
-            print(f"[SecureStorageService] Failed to write key file securely: {e}")
+class SecureKeyManager:
+    """Manages sensitive API keys securely."""
+    def __init__(self, storage_path="/data/data/com.termux/files/home/.monu_secrets"):
+        self.storage_path = storage_path
+        self.logger = logging.getLogger("SecureKeyManager")
+        if not os.path.exists(self.storage_path):
+            os.makedirs(self.storage_path, mode=0o700)
+            self.logger.info("Created secure secrets storage.")
             
-        return Fernet(new_key_bytes)
+        self.db_path = os.path.join(self.storage_path, "system_state.db")
+        self._init_db()
 
-    def encrypt(self, plain_text: str) -> str:
-        """Encrypts plain text and returns a URL-safe base64 encoded string."""
-        if not plain_text:
-            return ""
-        try:
-            encrypted_bytes = self.fernet.encrypt(plain_text.encode())
-            return encrypted_bytes.decode()
-        except Exception as e:
-            print(f"[SecureStorageService] Encryption failed: {e}")
-            raise ValueError("Failed to encrypt data securely.")
+    def _init_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute('''CREATE TABLE IF NOT EXISTS task_state
+                            (id INTEGER PRIMARY KEY, task_id TEXT, status TEXT, last_updated TIMESTAMP)''')
+            conn.execute('''CREATE TABLE IF NOT EXISTS error_logs
+                            (id INTEGER PRIMARY KEY, timestamp TIMESTAMP, error_message TEXT, resolved BOOLEAN)''')
+            conn.commit()
 
-    def decrypt(self, encrypted_text: str) -> str:
-        """Decrypts a Fernet encrypted string back to plain text."""
-        if not encrypted_text:
-            return ""
-        try:
-            decrypted_bytes = self.fernet.decrypt(encrypted_text.encode())
-            return decrypted_bytes.decode()
-        except Exception as e:
-            print(f"[SecureStorageService] Decryption failed: {e}")
-            raise ValueError("Failed to decrypt data securely. Key might be invalid or data was tampered with.")
+    def get_keys(self, provider_name):
+        path = os.path.join(self.storage_path, f"{provider_name}.json")
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                return json.load(f)
+        return []
 
-secure_storage_service = SecureStorageService()
+    def add_key(self, provider_name, key):
+        # NOTE: Implement encryption here in a production environment
+        keys = self.get_keys(provider_name)
+        if key not in keys:
+            keys.append(key)
+            path = os.path.join(self.storage_path, f"{provider_name}.json")
+            with open(path, 'w') as f:
+                json.dump(keys, f)
+            self.logger.info(f"Added key for {provider_name}")
+            
+    def update_task_state(self, task_id, status):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT OR REPLACE INTO task_state (task_id, status, last_updated) VALUES (?, ?, CURRENT_TIMESTAMP)", (task_id, status))
+            conn.commit()
+
+    def log_error(self, message):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO error_logs (timestamp, error_message, resolved) VALUES (CURRENT_TIMESTAMP, ?, 0)", (message,))
+            conn.commit()

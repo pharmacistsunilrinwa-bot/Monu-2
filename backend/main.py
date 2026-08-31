@@ -1,285 +1,83 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from backend.database import get_db, init_db
-from backend.models import ChatHistory, Feedback
-from backend.services.gemini_service import gemini_service
-from backend.services.voice_service import voice_service
-from backend.services.search_service import search_service
-from backend.services.analysis_service import analysis_service
-from backend.services.sentiment_service import sentiment_service
-from backend.services.gemini_logic_service import gemini_logic_service
-from backend.services.file_manager_service import file_manager_service
-from backend.services.memory_service import memory_service
-from backend.services.orchestration_service import orchestration_service
-from backend.schemas import ChatRequest, ChatResponse, SearchRequest, TaskPlanRequest, ProjectPlan
-import os
-import shutil
+from fastapi import FastAPI, Depends, HTTPException, status
 import asyncio
-import socket
-import base64
+from services.orchestration_service import OrchestrationService
+from services.provider_registry import ProviderRegistryService
+from services.economic_task_engine import EconomicTaskEngine, MockAuthService
+from services.monitoring_services import HealthMonitorService
+from deployment.manager import DeploymentManager
+from security.audit_logger import AuditLogger
+from security.owner_bond import OwnerBondService
+from security.vault import Vault
+from security.rate_limiter import RateLimitMiddleware
+from core.event_bus import EventBus
+from core.task_queue import TaskQueue
+from auth import get_current_user
+from backend.config.config_loader import Config
 
-app = FastAPI(title="Personal AI Assistant API")
+app = FastAPI()
+app.add_middleware(RateLimitMiddleware)
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc: RequestValidationError):
-    errors = []
-    for error in exc.errors():
-        field = " -> ".join(str(loc) for loc in error.get("loc", []))
-        msg = error.get("msg", "invalid value")
-        errors.append(f"Field '{field}': {msg}")
-    user_friendly_msg = "Invalid or missing request parameters. " + "; ".join(errors)
-    return JSONResponse(
-        status_code=422,
-        content={
-            "success": False,
-            "error": "Bad Request: Missing or invalid parameters.",
-            "detail": user_friendly_msg
-        }
-    )
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc: HTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "success": False,
-            "error": exc.detail,
-            "detail": str(exc.detail)
-        }
-    )
-
-@app.exception_handler(Exception)
-async def generic_exception_handler(request, exc: Exception):
-    status_code = 500
-    error_message = "An unexpected server error occurred."
-    exc_name = type(exc).__name__
-    
-    if "Timeout" in exc_name or isinstance(exc, (asyncio.TimeoutError, socket.timeout)):
-        status_code = 504
-        error_message = "The request timed out. Please try again later."
-    elif "Connection" in exc_name or isinstance(exc, ConnectionError):
-        status_code = 503
-        error_message = "Unable to connect to downstream services. Please check your network connection."
-        
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "success": False,
-            "error": error_message,
-            "detail": str(exc)
-        }
-    )
+# Integrated Core
+vault = Vault()
+orchestrator = OrchestrationService()
+provider_registry = ProviderRegistryService()
+economic_engine = EconomicTaskEngine(MockAuthService())
+deployment_manager = DeploymentManager(AuditLogger())
+owner_bond = OwnerBondService(vault)
+health_monitor = HealthMonitorService()
+event_bus = EventBus()
+task_queue = TaskQueue()
 
 @app.on_event("startup")
-async def on_startup():
-    await init_db()
+async def startup_event():
+    asyncio.create_task(task_queue.worker())
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Security settings
+EMERGENCY_MODE = False
+VERSION = Config.get("VERSION")
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
-    # 1. Retrieve history context
-    context = await gemini_logic_service.get_context(db, request.user_id)
-    
-    # 2. Analyze sentiment (non-blocking)
-    asyncio.create_task(asyncio.to_thread(sentiment_service.analyze_text, request.message))
-    
-    # 3. Check if this is a memory forget command
-    message_lower = request.message.lower().strip()
-    is_forget_command = any(message_lower.startswith(prefix) for prefix in [
-        "forget about", "forget yesterday", "forget the last", "forget my preference", 
-        "delete my memory", "clear memory"
-    ]) or message_lower in ["clear all memory", "clear history", "forget everything"]
-    
-    if is_forget_command:
-        result_msg = await memory_service.forget_semantic(db, request.user_id, request.message)
-        return ChatResponse(response=result_msg)
-    
-    # 4. Decode attachment bytes if present
-    attachment_bytes = None
-    if request.attachment:
-        try:
-            attachment_bytes = base64.b64decode(request.attachment)
-        except Exception as e:
-            print(f"Failed to decode attachment base64: {e}")
-            
-    # 5. Get reasoned response with context using Monu Orchestration Server
-    response_text = await orchestration_service.execute_command(
-        db=db,
-        user_id=request.user_id,
-        message=request.message, 
-        context=context,
-        attachment_bytes=attachment_bytes,
-        attachment_mime=request.attachment_mime,
-        request_id=getattr(request, "request_id", None)
+def check_emergency_mode():
+    if EMERGENCY_MODE:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Emergency security mode active.")
+
+@app.get("/health")
+async def get_health():
+    return health_monitor.get_health()
+
+@app.post("/code/analyze")
+async def analyze_code(request: dict, current_user: dict = Depends(get_current_user)):
+    check_emergency_mode()
+    return deployment_manager.analyze_and_propose(
+        current_user["username"], 
+        request["patch_id"], 
+        request["file_path"], 
+        request["fix_logic"]
     )
-    
-    # 6. Save to history
-    new_entry = ChatHistory(
-        user_id=request.user_id,
-        message=request.message,
-        response=response_text
-    )
-    db.add(new_entry)
-    
-    return ChatResponse(response=response_text)
 
-@app.get("/chat/history")
-async def get_chat_history(user_id: str = "default", db: AsyncSession = Depends(get_db)):
-    from sqlalchemy.future import select
-    result = await db.execute(
-        select(ChatHistory)
-        .where(ChatHistory.user_id == user_id)
-        .order_by(ChatHistory.timestamp.asc())
-    )
-    history = result.scalars().all()
-    
-    response_list = []
-    for h in history:
-        # User message
-        response_list.append({
-            "id": str(h.id),
-            "role": "user",
-            "content": h.message,
-            "timestamp": h.timestamp.isoformat() if h.timestamp else ""
-        })
-        # Assistant response
-        response_list.append({
-            "id": str(h.id),
-            "role": "assistant",
-            "content": h.response,
-            "timestamp": h.timestamp.isoformat() if h.timestamp else ""
-        })
-    return response_list
+@app.get("/version")
+async def get_version():
+    return {"version": VERSION}
 
-@app.delete("/chat/history")
-async def clear_chat_history(user_id: str = "default", db: AsyncSession = Depends(get_db)):
-    from sqlalchemy import delete
-    await db.execute(delete(ChatHistory).where(ChatHistory.user_id == user_id))
-    return {"success": True, "message": "History cleared"}
+@app.post("/emergency/toggle")
+async def toggle_emergency(current_user: dict = Depends(get_current_user)):
+    global EMERGENCY_MODE
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    EMERGENCY_MODE = not EMERGENCY_MODE
+    return {"emergency_mode": EMERGENCY_MODE}
 
-@app.delete("/chat/history/{id}")
-async def delete_chat_entry(id: int, db: AsyncSession = Depends(get_db)):
-    from sqlalchemy import delete
-    await db.execute(delete(ChatHistory).where(ChatHistory.id == id))
-    return {"success": True, "message": f"Entry {id} deleted"}
+@app.post("/chat")
+async def chat(request: dict, current_user: dict = Depends(get_current_user)):
+    check_emergency_mode()
+    return await orchestrator.handle_request(request["message"])
 
-@app.post("/chat/forget")
-async def forget_memory(request: ChatRequest, db: AsyncSession = Depends(get_db)):
-    result_msg = await memory_service.forget_semantic(db, request.user_id, request.message)
-    return {"success": True, "message": result_msg}
-
-@app.post("/voice-to-text")
-async def voice_to_text(file: UploadFile = File(...)):
-    temp_path = f"voice_{file.filename}"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    try:
-        text = await voice_service.speech_to_text(temp_path)
-        return {"text": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Speech to text failed: {str(e)}")
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-
-# --- Power Feature: Tools ---
-@app.get("/tools")
-async def get_tools():
-    from backend.tools import get_tools_schema
-    return {"tools": get_tools_schema()}
-
-@app.post("/chat/feedback")
-async def add_feedback(message_id: int, feedback_type: str, user_id: str = "default", db: AsyncSession = Depends(get_db)):
-    try:
-        new_feedback = Feedback(message_id=message_id, user_id=user_id, feedback_type=feedback_type)
-        db.add(new_feedback)
-        await db.commit()
-        return {"success": True, "message": "Feedback recorded"}
-
-    except Exception as e:
-        print(f"Error recording feedback: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": "Failed to record feedback"}
-        )
-
-# --- Tracking System ---
-@app.websocket("/ws/track/{request_id}")
-async def websocket_endpoint(websocket: WebSocket, request_id: str):
-    from backend.services.tracking_service import tracking_service
-    await tracking_service.connect(request_id, websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except:
-        tracking_service.disconnect(request_id)
-
-@app.post("/analysis/csv")
-async def analyze_csv(file: UploadFile = File(...)):
-    temp_path = f"data_{file.filename}"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    try:
-        report = analysis_service.analyze_csv(temp_path)
-        return report
-    finally:
-        os.remove(temp_path)
-
-# --- Power Feature: File System ---
-@app.get("/files/list")
-async def list_files(path: str = ""):
-    return {"files": file_manager_service.list_files(path)}
-
-@app.post("/files/mkdir")
-async def make_dir(name: str):
-    return {"message": file_manager_service.create_directory(name)}
-
-@app.post("/tasks/plan", response_model=ProjectPlan)
-async def plan_tasks(request: TaskPlanRequest):
-    prompt = (
-        f"Create a detailed project plan for the following goal: {request.goal}. "
-        "You MUST return the response as a valid, parsable JSON object. "
-        "The JSON object must have exactly two keys:\n"
-        "1. 'title' (a string matching the goal)\n"
-        "2. 'steps' (a list of objects, where each object has 'step' and 'description' keys).\n"
-        "Do not include any explanation or markdown formatting (like ```json) outside the JSON."
-    )
-    response_text = await gemini_service.generate_content(prompt)
-    
-    # Robust extraction and parsing of JSON
-    import json
-    import re
-    try:
-        cleaned_text = response_text.strip()
-        if cleaned_text.startswith("```"):
-            cleaned_text = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned_text)
-            cleaned_text = re.sub(r"\n?```$", "", cleaned_text)
-        cleaned_text = cleaned_text.strip()
+@app.post("/economic/task")
+async def economic_task(task_id: str, action: str, current_user: dict = Depends(get_current_user)):
+    check_emergency_mode()
+    # High-security requirement
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="High-security access required.")
         
-        parsed_data = json.loads(cleaned_text)
-        if "title" in parsed_data and "steps" in parsed_data and isinstance(parsed_data["steps"], list):
-            steps = []
-            for step in parsed_data["steps"]:
-                if isinstance(step, dict) and "step" in step and "description" in step:
-                    steps.append({"step": str(step["step"]), "description": str(step["description"])})
-            if steps:
-                return ProjectPlan(title=str(parsed_data.get("title", request.goal)), steps=steps)
-    except Exception as parse_err:
-        print(f"Failed to parse structured JSON from Gemini response: {parse_err}. Raw text was: {response_text}")
-        
-    return ProjectPlan(title=request.goal, steps=[{"step": "Detailed Plan", "description": response_text}])
-
-if __name__ == "__main__":
-    import uvicorn
-    import os
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    if action == "execute":
+        return economic_engine.execute(task_id)
+    return {"status": "INVALID_ACTION"}

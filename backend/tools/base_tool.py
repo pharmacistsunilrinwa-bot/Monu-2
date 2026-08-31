@@ -1,33 +1,15 @@
+import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any
-from backend.services.permission_service import PermissionLevel
 
 class BaseTool(ABC):
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """The identifier of the tool (e.g., 'run_shell_command')."""
-        pass
-
-    @property
-    @abstractmethod
-    def description(self) -> str:
-        """A brief description of what the tool does and when to use it."""
-        pass
-
-    @property
-    @abstractmethod
-    def security_level(self) -> str:
-        """The required security level to execute this tool."""
-        pass
-
-    @property
-    @abstractmethod
-    def arguments(self) -> Dict[str, Any]:
-        """A schema describing the tool's expected arguments (for LLM tool calling context)."""
-        pass
+    def __init__(self, name, category):
+        self.name = name
+        self.category = category
+        self.logger = logging.getLogger(name)
 
     @abstractmethod
-    async def execute(self, user_id: str, **kwargs) -> Dict[str, Any]:
-        """Executes the tool with given arguments. Returns a structured result."""
+    def execute(self, *args, **kwargs):
         pass
+
+    def log_tool_action(self, action, details=""):
+        self.logger.info(f"Tool: {self.name} | Action: {action} | Details: {details}")

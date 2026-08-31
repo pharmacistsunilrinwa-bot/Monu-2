@@ -8,6 +8,7 @@ pydantic
 # Database
 sqlalchemy
 aiosqlite
+chromadb
 
 # AI & Search
 google-generativeai
@@ -19,6 +20,10 @@ textblob
 pandas
 numpy
 
+# Code Intelligence
+tree-sitter
+tree-sitter-languages
+
 # Google Workspace & Auth
 google-auth
 google-auth-oauthlib
@@ -29,6 +34,6 @@ cryptography
 
 # Voice & Utils
 requests
+aiohttp
 gTTS
-setuptools
 setuptools
