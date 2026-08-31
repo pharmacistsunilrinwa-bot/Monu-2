@@ -24,12 +24,10 @@ jobs:
           cache: true
 
       - name: Install Dependencies
-        run: flutter pub get
-        working-directory: frontend
+        run: cd frontend && flutter pub get
 
       - name: Build Release APK
-        run: flutter build apk --release
-        working-directory: frontend
+        run: cd frontend && flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
