@@ -383,6 +383,20 @@ class _ChatScreenState extends State<ChatScreen> {
         _saveLocalHistory();
         _scrollToBottom();
         
+      } else {
+        setState(() {
+          _trackingError = "Server error: ${response.statusCode}";
+          _currentStatus = MessageStatus.error;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _trackingError = "Request failed: $e";
+        _currentStatus = MessageStatus.error;
+        _isLoading = false;
+      });
+    }
         // ... (remaining unchanged)
 
   // Helper helper to support list matching in Dart
