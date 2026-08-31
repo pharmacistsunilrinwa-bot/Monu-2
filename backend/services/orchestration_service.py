@@ -24,7 +24,7 @@ class OrchestrationService:
         context: str = "",
         attachment_bytes: Optional[bytes] = None,
         attachment_mime: Optional[str] = None,
-        request_id: Optional[str] = None # Added for tracking
+        request_id: Optional[str] = None
     ) -> str:
         """
         The main orchestration entry point. Receives the command, plans actions, 
@@ -32,28 +32,36 @@ class OrchestrationService:
         and returns the final result.
         """
         from backend.services.tracking_service import tracking_service
-        if request_id:
-            await tracking_service.update_status(request_id, "Processing by AI Engine")
+        
+        async def update_status(status: str, error: str = None):
+            if request_id:
+                await tracking_service.update_status(request_id, status, error=error)
+
+        await update_status("Received by Engine / Server")
 
         message_lower = message.lower().strip()
-        # ... rest of the method unchanged ...
-
+        
         # 1. Handle Permission / Elevation Commands
         if message_lower.startswith("elevate session") or message_lower.startswith("authorize high security"):
             try:
                 msg = permission_service.elevate_session(user_id)
+                await update_status("Response Generated & In Transit Back")
                 return f"🔓 **[SECURITY UPDATE]**\n{msg}"
             except Exception as e:
+                await update_status("Error occurred", error=str(e))
                 return f"🔒 **[SECURITY ERROR]**\n{str(e)}"
                 
         if message_lower.startswith("revoke session") or message_lower.startswith("lock session"):
             permission_service.revoke_elevation(user_id)
+            await update_status("Response Generated & In Transit Back")
             return "🔒 **[SECURITY UPDATE]**\nHigh-security session successfully revoked and locked."
 
-        # 2. Setup the Orchestrator loop (Max 5 reasoning steps to avoid infinite loops)
+        # 2. Setup the Orchestrator loop
         max_steps = 5
         execution_history: List[Dict[str, Any]] = []
         is_elevated = permission_service.is_session_elevated(user_id)
+        
+        await update_status("Processing by AI Engine")
         
         for step in range(max_steps):
             prompt = self._build_orchestration_prompt(
@@ -91,6 +99,7 @@ class OrchestrationService:
                         except Exception as save_err:
                             print(f"[Orchestrator] Error saving task report to DB: {save_err}")
                         
+                    await update_status("Response Generated & In Transit Back")
                     return reply_msg
                 
                 # Check tool availability
@@ -149,6 +158,7 @@ class OrchestrationService:
                 print(f"[Orchestrator] Error on step {step}: {e}")
                 traceback.print_exc()
                 # Fallback to direct reasoning chat to preserve service continuity
+                await update_status("Response Generated & In Transit Back")
                 return await gemini_logic_service.reasoned_chat(
                     prompt=message,
                     context=context,
@@ -161,6 +171,7 @@ class OrchestrationService:
         for entry in execution_history:
             status_emoji = "✅" if entry["success"] else "❌"
             report += f"- {status_emoji} `{entry['tool']}`: {entry.get('error', 'Success')}\n"
+        await update_status("Response Generated & In Transit Back")
         return report
 
     def _build_orchestration_prompt(
